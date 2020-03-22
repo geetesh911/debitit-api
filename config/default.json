@@ -1,0 +1,4 @@
+{
+  "mongoURI": "mongodb://geetesh911:geetesh911@debitit-shard-00-00-xodei.mongodb.net:27017,debitit-shard-00-01-xodei.mongodb.net:27017,debitit-shard-00-02-xodei.mongodb.net:27017/test?ssl=true&replicaSet=Debitit-shard-0&authSource=admin&retryWrites=true&w=majority",
+  "jwtSecret": "geetesh911"
+}
