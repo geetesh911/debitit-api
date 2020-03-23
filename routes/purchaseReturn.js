@@ -61,12 +61,16 @@ router.post(
     const product = await Product.findById(productId);
     if (!product) return res.status(400).json({ msg: "Invalid product." });
 
-    const totalProductReturn = await Purchase.find({
-      "purchase._id": mongoose.Types.ObjectId(purchase._id).toString()
+    const totalProductReturn = await PurchaseReturn.find({
+      "purchase._id": purchase._id
     });
-    // console.log(totalProductReturn, purchase._id);
 
-    if (quantity > purchase.quantity)
+    let purchaseReturnQuantityTotal = 0;
+    totalProductReturn.forEach(productReturn => {
+      purchaseReturnQuantityTotal += productReturn.quantity;
+    });
+
+    if (quantity > purchase.quantity - purchaseReturnQuantityTotal)
       return res.status(400).json({ msg: "Cannot return more than purchased" });
 
     try {
