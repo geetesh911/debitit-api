@@ -12,9 +12,9 @@ const router = express.Router();
 router.get("/", auth, async (req, res) => {
   const product = req.query.product;
   try {
-    let purchase;
+    let sales;
     if (product) {
-      purchase = await Sales.find({
+      sales = await Sales.find({
         $and: [
           { user: req.user.id },
           { productName: product },
@@ -22,11 +22,11 @@ router.get("/", auth, async (req, res) => {
         ]
       });
     } else {
-      purchase = await Sales.find({ user: req.user.id }).sort({
+      sales = await Sales.find({ user: req.user.id }).sort({
         date: -1
       });
     }
-    res.json(purchase);
+    res.json(sales);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: "Server Error" });
