@@ -70,7 +70,10 @@ router.post(
       purchaseReturnQuantityTotal += productReturn.quantity;
     });
 
-    if (quantity > purchase.quantity - purchaseReturnQuantityTotal)
+    if (
+      quantity > purchase.quantity - purchaseReturnQuantityTotal &&
+      quantity > product.numberInStock
+    )
       return res.status(400).json({ msg: "Cannot return more than purchased" });
 
     try {

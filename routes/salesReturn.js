@@ -68,7 +68,10 @@ router.post(
       salesReturnQuantityTotal += productReturn.quantity;
     });
 
-    if (quantity > sales.quantity - salesReturnQuantityTotal)
+    if (
+      quantity > sales.quantity - salesReturnQuantityTotal &&
+      quantity > product.numberInStock
+    )
       return res.status(400).json({ msg: "Cannot return more than sold" });
 
     try {
