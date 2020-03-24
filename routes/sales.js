@@ -87,7 +87,7 @@ router.post(
           quantity,
           price,
           otherExpenses,
-          totalCost: quantity * price + otherExpenses,
+          totalAmount: quantity * price + otherExpenses,
           date,
           customer: {
             _id: customer._id,
@@ -103,7 +103,7 @@ router.post(
           quantity,
           price,
           otherExpenses,
-          totalCost: quantity * price + otherExpenses,
+          totalAmount: quantity * price + otherExpenses,
           date,
           user: req.user.id
         });
