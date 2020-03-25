@@ -10,6 +10,14 @@ const UserSchema = mongoose.Schema({
     required: true,
     unique: true
   },
+  gender: {
+    type: String,
+    required: true
+  },
+  icon: {
+    type: String,
+    required: true
+  },
   password: {
     type: String,
     required: true
