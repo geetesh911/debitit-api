@@ -17,7 +17,7 @@ router.get("/", auth, async (req, res) => {
       sales = await Sales.find({
         $and: [
           { user: req.user.id },
-          { productName: product },
+          { soldProducts: { $elemMatch: { productName: product } } },
           { payment: "credit" }
         ]
       });
@@ -38,7 +38,7 @@ router.post(
   [
     auth,
     [
-      check("productName", "Name is required")
+      check("soldProducts", "product is required")
         .not()
         .isEmpty(),
       check("payment", "Payment method is required")
@@ -53,19 +53,24 @@ router.post(
       return res.status(400).json({ errors: errors.array()[0].msg });
     }
 
-    const {
-      productName,
-      payment,
-      customerId,
-      quantity,
-      price,
-      otherExpenses,
-      date,
-      productId
-    } = req.body;
+    const { soldProducts, payment, customerId, otherExpenses, date } = req.body;
 
-    const product = await Product.findById(productId);
-    if (!product) return res.status(400).json({ msg: "Invalid product." });
+    let product;
+    let tAmount = 0;
+
+    for (let i = 0; i < soldProducts.length; i++) {
+      product = await Product.findById(soldProducts[i].productId);
+
+      if (!product) {
+        return res.status(400).json({ msg: "Invalid product." });
+      }
+
+      if (soldProducts[i].quantity > product.numberInStock) {
+        return res.status(400).json({ msg: "Enough stock is not available" });
+      }
+
+      tAmount += soldProducts[i].quantity * soldProducts[i].price;
+    }
 
     let customer;
 
@@ -74,20 +79,15 @@ router.post(
       if (!customer) return res.status(400).json({ msg: "Invalid customer" });
     }
 
-    if (quantity > product.numberInStock) {
-      return res.status(400).json({ msg: "Enough stock is not available" });
-    }
-
+    otherExpenses ? (tAmount += otherExpenses) : (tAmount = tAmount);
     try {
       let newSale;
       if (customer) {
         newSale = new Sales({
-          productName,
+          soldProducts,
           payment,
-          quantity,
-          price,
           otherExpenses,
-          totalAmount: quantity * price + otherExpenses,
+          totalAmount: tAmount,
           date,
           customer: {
             _id: customer._id,
@@ -98,27 +98,29 @@ router.post(
         });
       } else {
         newSale = new Sales({
-          productName,
+          soldProducts,
           payment,
-          quantity,
-          price,
           otherExpenses,
-          totalAmount: quantity * price + otherExpenses,
+          totalAmount: tAmount,
           date,
           user: req.user.id
         });
       }
 
-      if (!mongoose.Types.ObjectId.isValid(productId))
-        return res.status(404).json({ msg: "Invalid ID." });
-      new Fawn.Task()
-        .save("sales", newSale)
-        .update(
+      let task = new Fawn.Task();
+      task = task.save("sales", newSale);
+      for (let i = 0; i < soldProducts.length; i++) {
+        if (!mongoose.Types.ObjectId.isValid(soldProducts[i].productId)) {
+          return res.status(404).json({ msg: "Invalid ID." });
+        }
+
+        task = task.update(
           "products",
-          { _id: mongoose.Types.ObjectId(productId) },
-          { $inc: { numberInStock: -quantity } }
-        )
-        .run();
+          { _id: mongoose.Types.ObjectId(soldProducts[i].productId) },
+          { $inc: { numberInStock: -soldProducts[i].quantity } }
+        );
+      }
+      task.run();
 
       res.json(newSale);
     } catch (err) {

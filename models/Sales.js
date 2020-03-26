@@ -6,25 +6,39 @@ const SalesSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "users"
   },
-  productName: {
-    type: String,
-    required: true,
-    trim: true
-  },
+  soldProducts: [
+    {
+      productId: {
+        type: {
+          String,
+          required: true
+        }
+      },
+      productName: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      quantity: {
+        type: Number,
+        required: true
+      },
+      price: {
+        type: Number,
+        required: true
+      },
+      total: {
+        type: Number,
+        required: true
+      }
+    }
+  ],
   payment: {
     type: String,
     required: true
   },
   customer: {
     type: CustomerSchema
-  },
-  quantity: {
-    type: Number,
-    required: true
-  },
-  price: {
-    type: Number,
-    required: true
   },
   otherExpenses: {
     type: Number,
