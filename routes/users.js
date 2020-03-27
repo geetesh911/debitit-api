@@ -31,7 +31,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, gender, password } = req.body;
+    const { name, email, gender, address, mobile, password } = req.body;
 
     try {
       let user = await User.findOne({ email });
@@ -60,7 +60,7 @@ router.post(
         ? (icon = maleIcons[Math.ceil(Math.random() * 5)])
         : (icon = femaleIcons[Math.ceil(Math.random() * 4)]);
 
-      user = new User({ name, email, gender, password, icon });
+      user = new User({ name, email, gender, password, address, mobile, icon });
 
       const salt = await bcrypt.genSalt(10);
 
