@@ -1,7 +1,6 @@
 const express = require("express");
 const { check, validationResult } = require("express-validator");
 const auth = require("../middleware/auth");
-const validateObjectId = require("../middleware/validateObjectId");
 const { SalesReturn } = require("../models/SalesReturn");
 const { Sales } = require("../models/Sales");
 const { Product } = require("../models/Product");

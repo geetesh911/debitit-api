@@ -34,7 +34,7 @@ router.post(
     const { name, email, gender, address, mobile, password } = req.body;
 
     try {
-      let user = await User.findOne({ email });
+      let user = await User.findOne({ email: email.toLowerCase() });
 
       if (user) {
         return res.status(400).json({ msg: "User already exist" });
@@ -60,7 +60,15 @@ router.post(
         ? (icon = maleIcons[Math.ceil(Math.random() * 5)])
         : (icon = femaleIcons[Math.ceil(Math.random() * 4)]);
 
-      user = new User({ name, email, gender, password, address, mobile, icon });
+      user = new User({
+        name,
+        email: email.toLowerCase(),
+        gender,
+        password,
+        address,
+        mobile,
+        icon
+      });
 
       const salt = await bcrypt.genSalt(10);
 
