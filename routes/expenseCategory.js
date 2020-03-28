@@ -2,6 +2,8 @@ const express = require("express");
 const { check, validationResult } = require("express-validator");
 const auth = require("../middleware/auth");
 const { ExpenseCategory } = require("../models/ExpenseCategory");
+const { Expense } = require("../models/Expense");
+const Fawn = require("fawn");
 
 const router = express.Router();
 
@@ -24,6 +26,9 @@ router.post(
     [
       check("name", "Name is required")
         .not()
+        .isEmpty(),
+      check("amount", "Amount is required")
+        .not()
         .isEmpty()
     ]
   ],
@@ -32,17 +37,25 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array()[0].msg });
     }
-    const { name } = req.body;
+    const { name, amount } = req.body;
 
     try {
       const newCategory = new ExpenseCategory({
         name,
         user: req.user.id
       });
+      const newExpense = new Expense({
+        name,
+        amount,
+        user: req.user.id
+      });
 
-      const category = await newCategory.save();
+      new Fawn.Task()
+        .save("expensecategories", newCategory)
+        .save("expenses", newExpense)
+        .run();
 
-      res.json(category);
+      res.json({ newCategory, newExpense });
     } catch (err) {
       console.error(err.message);
       res.status(500).json({ msg: "Server Error" });

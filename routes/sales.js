@@ -4,6 +4,7 @@ const auth = require("../middleware/auth");
 const { Sales } = require("../models/Sales");
 const { Customer } = require("../models/Customer");
 const { Product } = require("../models/Product");
+const { Cash } = require("../models/Cash");
 const Fawn = require("fawn");
 const mongoose = require("mongoose");
 
@@ -107,20 +108,44 @@ router.post(
         });
       }
 
-      let task = new Fawn.Task();
-      task = task.save("sales", newSale);
-      for (let i = 0; i < soldProducts.length; i++) {
-        if (!mongoose.Types.ObjectId.isValid(soldProducts[i].productId)) {
-          return res.status(404).json({ msg: "Invalid ID." });
-        }
+      const newCash = new Cash({
+        source: "sales",
+        type: "dr",
+        amount: tAmount,
+        user: req.user.id
+      });
 
-        task = task.update(
-          "products",
-          { _id: mongoose.Types.ObjectId(soldProducts[i].productId) },
-          { $inc: { numberInStock: -soldProducts[i].quantity } }
-        );
+      let task = new Fawn.Task();
+      if (customer) {
+        task = task.save("sales", newSale);
+        for (let i = 0; i < soldProducts.length; i++) {
+          if (!mongoose.Types.ObjectId.isValid(soldProducts[i].productId)) {
+            return res.status(404).json({ msg: "Invalid ID." });
+          }
+
+          task = task.update(
+            "products",
+            { _id: mongoose.Types.ObjectId(soldProducts[i].productId) },
+            { $inc: { numberInStock: -soldProducts[i].quantity } }
+          );
+        }
+        task.run();
+      } else {
+        task = task.save("sales", newSale);
+        task = task.save("cashes", newCash);
+        for (let i = 0; i < soldProducts.length; i++) {
+          if (!mongoose.Types.ObjectId.isValid(soldProducts[i].productId)) {
+            return res.status(404).json({ msg: "Invalid ID." });
+          }
+
+          task = task.update(
+            "products",
+            { _id: mongoose.Types.ObjectId(soldProducts[i].productId) },
+            { $inc: { numberInStock: -soldProducts[i].quantity } }
+          );
+        }
+        task.run();
       }
-      task.run();
 
       res.json(newSale);
     } catch (err) {

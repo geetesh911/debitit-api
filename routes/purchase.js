@@ -4,6 +4,7 @@ const auth = require("../middleware/auth");
 const { Purchase } = require("../models/Purchase");
 const { Creditor } = require("../models/Creditor");
 const { Product } = require("../models/Product");
+const { Cash } = require("../models/Cash");
 const Fawn = require("fawn");
 const mongoose = require("mongoose");
 
@@ -68,6 +69,10 @@ router.post(
       productId
     } = req.body;
 
+    let othExp = 0;
+    otherExpenses ? (othExp = otherExpenses) : (othExp = 0);
+    const tAmount = quantity * perPieceCost + othExp;
+
     if (newPur || productId) {
       let product;
 
@@ -93,7 +98,7 @@ router.post(
             perPieceCost,
             perPieceSellingPrice,
             otherExpenses,
-            totalCost: quantity * perPieceCost + otherExpenses,
+            totalCost: tAmount,
             date,
             creditor: {
               _id: creditor._id,
@@ -110,11 +115,29 @@ router.post(
             perPieceCost,
             perPieceSellingPrice,
             otherExpenses,
-            totalCost: quantity * perPieceCost + otherExpenses,
+            totalCost: tAmount,
             date,
             user: req.user.id
           });
         }
+
+        const cashCr = await Cash.find({ type: "cr" });
+        const cashDr = await Cash.find({ type: "dr" });
+
+        let crTotal = 0;
+        let drTotal = 0;
+
+        cashCr.forEach(cr => (crTotal += cr.amount));
+        cashDr.forEach(dr => (drTotal += dr.amount));
+
+        const netCash = drTotal - crTotal;
+
+        const newCash = new Cash({
+          source: "purchase",
+          type: "cr",
+          amount: tAmount,
+          user: req.user.id
+        });
 
         if (newPur) {
           const newProduct = new Product({
@@ -124,23 +147,52 @@ router.post(
             perPieceSellingPrice,
             user: req.user.id
           });
-          new Fawn.Task()
-            .save("purchases", newPurchase)
-            .save("products", newProduct)
-            .run();
+          if (creditor) {
+            new Fawn.Task()
+              .save("purchases", newPurchase)
+              .save("products", newProduct)
+              .run();
+          } else {
+            if (netCash < tAmount)
+              return res
+                .status(400)
+                .json({ msg: "Enough Cash is not available" });
+
+            new Fawn.Task()
+              .save("purchases", newPurchase)
+              .save("products", newProduct)
+              .save("cashes", newCash)
+              .run();
+          }
 
           res.json({ newPurchase, newProduct });
         } else {
           if (!mongoose.Types.ObjectId.isValid(productId))
             return res.status(404).json({ msg: "Invalid ID." });
-          new Fawn.Task()
-            .save("purchases", newPurchase)
-            .update(
-              "products",
-              { _id: mongoose.Types.ObjectId(productId) },
-              { $inc: { numberInStock: quantity } }
-            )
-            .run();
+          if (creditor) {
+            new Fawn.Task()
+              .save("purchases", newPurchase)
+              .update(
+                "products",
+                { _id: mongoose.Types.ObjectId(productId) },
+                { $inc: { numberInStock: quantity } }
+              )
+              .run();
+          } else {
+            if (netCash < tAmount)
+              return res
+                .status(400)
+                .json({ msg: "Enough Cash is not available" });
+            new Fawn.Task()
+              .save("purchases", newPurchase)
+              .update(
+                "products",
+                { _id: mongoose.Types.ObjectId(productId) },
+                { $inc: { numberInStock: quantity } }
+              )
+              .save("cashes", newCash)
+              .run();
+          }
 
           res.json(newPurchase);
         }
