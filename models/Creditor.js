@@ -9,9 +9,14 @@ const CreditorSchema = mongoose.Schema({
     type: String,
     required: true
   },
+  due: {
+    type: Number,
+    required: true,
+    default: 0
+  },
   contact: {
     type: String,
-    required: true,
+    required: true
   }
 });
 

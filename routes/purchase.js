@@ -148,8 +148,16 @@ router.post(
             user: req.user.id
           });
           if (creditor) {
+            if (!mongoose.Types.ObjectId.isValid(creditorId))
+              return res.status(404).json({ msg: "Invalid ID." });
+
             new Fawn.Task()
               .save("purchases", newPurchase)
+              .update(
+                "creditors",
+                { _id: mongoose.Types.ObjectId(creditorId) },
+                { $inc: { due: tAmount } }
+              )
               .save("products", newProduct)
               .run();
           } else {
@@ -172,6 +180,11 @@ router.post(
           if (creditor) {
             new Fawn.Task()
               .save("purchases", newPurchase)
+              .update(
+                "creditors",
+                { _id: mongoose.Types.ObjectId(creditorId) },
+                { $inc: { due: tAmount } }
+              )
               .update(
                 "products",
                 { _id: mongoose.Types.ObjectId(productId) },

@@ -9,6 +9,11 @@ const CustomerSchema = mongoose.Schema({
     type: String,
     required: true
   },
+  due: {
+    type: Number,
+    required: true,
+    default: 0
+  },
   mobile: {
     type: String,
     required: true

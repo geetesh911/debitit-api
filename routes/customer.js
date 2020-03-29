@@ -1,8 +1,10 @@
 const express = require("express");
 const { check, validationResult } = require("express-validator");
 const auth = require("../middleware/auth");
-const validateObjectId = require("../middleware/validateObjectId");
 const { Customer } = require("../models/Customer");
+const { Cash } = require("../models/Cash");
+const Fawn = require("fawn");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -36,11 +38,12 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array()[0].msg });
     }
-    const { name, mobile } = req.body;
+    const { name, due, mobile } = req.body;
 
     try {
       const newCustomer = new Customer({
         name,
+        due,
         mobile,
         user: req.user.id
       });
@@ -56,12 +59,13 @@ router.post(
 );
 
 router.put("/:id", auth, async (req, res) => {
-  const { name, mobile } = req.body;
+  const { name, due, mobile } = req.body;
 
   // Build a card object
   const customerFields = {};
 
   if (name) customerFields.name = name;
+  if (due) customerFields.due = due;
   if (mobile) customerFields.mobile = mobile;
 
   try {

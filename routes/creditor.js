@@ -36,11 +36,12 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array()[0].msg });
     }
-    const { name, contact } = req.body;
+    const { name, due, contact } = req.body;
 
     try {
       const newCreditor = new Creditor({
         name,
+        due,
         contact,
         user: req.user.id
       });
@@ -56,12 +57,13 @@ router.post(
 );
 
 router.put("/:id", auth, async (req, res) => {
-  const { name, contact } = req.body;
+  const { name, due, contact } = req.body;
 
   // Build a card object
   const creditorFields = {};
 
   if (name) creditorFields.name = name;
+  if (due) creditorFields.due = due;
   if (contact) creditorFields.contact = contact;
 
   try {

@@ -101,11 +101,18 @@ router.post(
         user: req.user.id
       });
 
+      const amount = quantity * perPieceCost;
+
       if (!mongoose.Types.ObjectId.isValid(productId))
         return res.status(404).json({ msg: "Invalid ID." });
 
       new Fawn.Task()
         .save("purchasereturns", newPurchaseReturn)
+        .update(
+          "creditors",
+          { _id: mongoose.Types.ObjectId(purchase.creditor._id) },
+          { $inc: { due: -amount } }
+        )
         .update(
           "products",
           { _id: mongoose.Types.ObjectId(productId) },

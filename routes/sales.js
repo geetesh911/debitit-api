@@ -117,7 +117,18 @@ router.post(
 
       let task = new Fawn.Task();
       if (customer) {
+        if (!mongoose.Types.ObjectId.isValid(customerId)) {
+          return res.status(404).json({ msg: "Invalid ID." });
+        }
+
         task = task.save("sales", newSale);
+
+        task = task.update(
+          "customers",
+          { _id: mongoose.Types.ObjectId(customerId) },
+          { $inc: { due: tAmount } }
+        );
+
         for (let i = 0; i < soldProducts.length; i++) {
           if (!mongoose.Types.ObjectId.isValid(soldProducts[i].productId)) {
             return res.status(404).json({ msg: "Invalid ID." });
@@ -131,8 +142,6 @@ router.post(
         }
         task.run();
       } else {
-        task = task.save("sales", newSale);
-        task = task.save("cashes", newCash);
         for (let i = 0; i < soldProducts.length; i++) {
           if (!mongoose.Types.ObjectId.isValid(soldProducts[i].productId)) {
             return res.status(404).json({ msg: "Invalid ID." });
@@ -144,6 +153,8 @@ router.post(
             { $inc: { numberInStock: -soldProducts[i].quantity } }
           );
         }
+        task = task.save("sales", newSale);
+        task = task.save("cashes", newCash);
         task.run();
       }
 
