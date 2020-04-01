@@ -9,9 +9,13 @@ const Fawn = require("fawn");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  const cash = await Drawing.find();
-  res.json(cash);
+router.get("/", auth, async (req, res) => {
+  try {
+    const cash = await Drawing.find({ user: req.user.id });
+    res.json(cash);
+  } catch (error) {
+    res.status(500).json({ msg: "Server Error" });
+  }
 });
 
 router.post(

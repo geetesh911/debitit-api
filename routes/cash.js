@@ -5,9 +5,17 @@ const { Cash } = require("../models/Cash");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  const cash = await Cash.find({ type: "cr" });
-  res.json(cash);
+router.get("/", auth, async (req, res) => {
+  try {
+    const cash = await Cash.find({ user: req.user.id })
+      .sort("type")
+      .sort("date");
+    // .sort("date");
+    res.json(cash);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ msg: "Server Error" });
+  }
 });
 
 router.post(
