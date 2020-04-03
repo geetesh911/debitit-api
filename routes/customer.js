@@ -41,6 +41,11 @@ router.post(
     const { name, due, mobile } = req.body;
 
     try {
+      let c = await Customer.findOne({ mobile: mobile.toLowerCase() });
+      if (c) {
+        return res.status(400).json({ msg: "Customer already exist" });
+      }
+
       const newCustomer = new Customer({
         name,
         due,

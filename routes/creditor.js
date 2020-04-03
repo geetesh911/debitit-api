@@ -39,6 +39,11 @@ router.post(
     const { name, due, contact } = req.body;
 
     try {
+      let c = await Creditor.findOne({ contact: contact.toLowerCase() });
+      if (c) {
+        return res.status(400).json({ msg: "Creditor already exist" });
+      }
+
       const newCreditor = new Creditor({
         name,
         due,

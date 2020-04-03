@@ -2,6 +2,7 @@ const express = require("express");
 const { check, validationResult } = require("express-validator");
 const auth = require("../middleware/auth");
 const { Cash } = require("../models/Cash");
+const isodate = require("isodate");
 
 const router = express.Router();
 
@@ -58,5 +59,34 @@ router.post(
     }
   }
 );
+
+router.get("/range", auth, async (req, res) => {
+  try {
+    let lRange = req.query.lRange;
+    let uRange = req.query.uRange;
+
+    lRange = isodate(new Date(lRange));
+    uRange = isodate(new Date(uRange));
+
+    const cash = await Cash.find({
+      $and: [
+        { user: req.user.id },
+        {
+          date: {
+            $gte: lRange,
+            $lt: uRange
+          }
+        }
+      ]
+    })
+      .sort("type")
+      .sort("date");
+    // .sort("date");
+    res.json(cash);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ msg: "Server Error" });
+  }
+});
 
 module.exports = router;

@@ -76,19 +76,26 @@ router.post(
     if (newPur || productId) {
       let product;
 
-      if (productId) {
-        product = await Product.findById(productId);
-        if (!product) return res.status(400).json({ msg: "Invalid product." });
-      }
-
-      let creditor;
-
-      if (creditorId) {
-        creditor = await Creditor.findById(creditorId);
-        if (!creditor) return res.status(400).json({ msg: "Invalid creditor" });
-      }
-
       try {
+        if (productId) {
+          product = await Product.findById(productId);
+          if (!product)
+            return res.status(400).json({ msg: "Invalid product." });
+        }
+
+        let creditor;
+
+        if (creditorId) {
+          creditor = await Creditor.findById(creditorId);
+          if (!creditor)
+            return res.status(400).json({ msg: "Invalid creditor" });
+        }
+        let p = await Product.findOne({
+          productName: productName.toLowerCase()
+        });
+        if (p) {
+          return res.status(400).json({ msg: "Product already exist" });
+        }
         let newPurchase;
         if (creditor) {
           newPurchase = new Purchase({
@@ -121,8 +128,12 @@ router.post(
           });
         }
 
-        const cashCr = await Cash.find({ type: "cr" });
-        const cashDr = await Cash.find({ type: "dr" });
+        const cashCr = await Cash.find({
+          $and: [{ user: req.user.id }, { type: "cr" }]
+        });
+        const cashDr = await Cash.find({
+          $and: [{ user: req.user.id }, { type: "dr" }]
+        });
 
         let crTotal = 0;
         let drTotal = 0;
