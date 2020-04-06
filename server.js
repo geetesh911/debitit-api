@@ -47,6 +47,7 @@ app.use("/api/drawing", require("./routes/drawing"));
 app.use("/api/receivedpayment", require("./routes/receivedPayment"));
 app.use("/api/gavepayment", require("./routes/gavePayment"));
 app.use("/api/assets", require("./routes/assets"));
+app.use("/api/liabilities", require("./routes/liabilities"));
 
 const PORT = process.env.PORT || 5000;
 

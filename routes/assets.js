@@ -27,13 +27,9 @@ router.post(
   [
     auth,
     [
-      check("name", "Name is required")
-        .not()
-        .isEmpty(),
-      check("amount", "Amount is required")
-        .not()
-        .isEmpty()
-    ]
+      check("name", "Name is required").not().isEmpty(),
+      check("amount", "Amount is required").not().isEmpty(),
+    ],
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -58,17 +54,17 @@ router.post(
       let othExp = 0;
       if (otherExpenses) othExp = otherExpenses;
       const cashCr = await Cash.find({
-        $and: [{ user: req.user.id }, { type: "cr" }]
+        $and: [{ user: req.user.id }, { type: "cr" }],
       });
       const cashDr = await Cash.find({
-        $and: [{ user: req.user.id }, { type: "dr" }]
+        $and: [{ user: req.user.id }, { type: "dr" }],
       });
 
       let crTotal = 0;
       let drTotal = 0;
 
-      cashCr.forEach(cr => (crTotal += cr.amount));
-      cashDr.forEach(dr => (drTotal += dr.amount));
+      cashCr.forEach((cr) => (crTotal += cr.amount));
+      cashDr.forEach((dr) => (drTotal += dr.amount));
 
       const netCash = drTotal - crTotal;
 
@@ -76,14 +72,14 @@ router.post(
         source: name,
         type: "cr",
         amount: amount + othExp,
-        user: req.user.id
+        user: req.user.id,
       });
 
       const newAsset = new Asset({
         name,
         amount,
         otherExpenses: othExp,
-        user: req.user.id
+        user: req.user.id,
       });
       if (creditorId) {
         let task = new Fawn.Task();
@@ -116,14 +112,7 @@ router.post(
 
 router.post(
   "/:id",
-  [
-    auth,
-    [
-      check("amount", "Amount is required")
-        .not()
-        .isEmpty()
-    ]
-  ],
+  [auth, [check("amount", "Amount is required").not().isEmpty()]],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -144,17 +133,17 @@ router.post(
       let othExp = 0;
       if (otherExpenses) othExp = otherExpenses;
       const cashCr = await Cash.find({
-        $and: [{ user: req.user.id }, { type: "cr" }]
+        $and: [{ user: req.user.id }, { type: "cr" }],
       });
       const cashDr = await Cash.find({
-        $and: [{ user: req.user.id }, { type: "dr" }]
+        $and: [{ user: req.user.id }, { type: "dr" }],
       });
 
       let crTotal = 0;
       let drTotal = 0;
 
-      cashCr.forEach(cr => (crTotal += cr.amount));
-      cashDr.forEach(dr => (drTotal += dr.amount));
+      cashCr.forEach((cr) => (crTotal += cr.amount));
+      cashDr.forEach((dr) => (drTotal += dr.amount));
 
       const netCash = drTotal - crTotal;
 
@@ -162,7 +151,7 @@ router.post(
         source: asset.name,
         type: "cr",
         amount: amount + othExp,
-        user: req.user.id
+        user: req.user.id,
       });
 
       if (creditorId) {
@@ -194,12 +183,12 @@ router.post(
         task.run();
       }
       res.json({
-        amount,
+        amount: asset.amount + amount,
         name: asset.name,
         otherExpenses: othExp,
         user: asset.id,
         id: req.params.id,
-        date: Date.now
+        date: Date.now,
       });
     } catch (err) {
       console.error(err.message);
