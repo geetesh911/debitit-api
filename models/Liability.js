@@ -22,6 +22,12 @@ const LiabilitySchema = mongoose.Schema({
     type: Number,
     required: true,
   },
+  source: {
+    type: String,
+  },
+  payment: {
+    type: String,
+  },
   otherExpenses: {
     type: Number,
     required: true,

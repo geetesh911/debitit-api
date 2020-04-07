@@ -5,8 +5,9 @@ const { Purchase } = require("../models/Purchase");
 const { Creditor } = require("../models/Creditor");
 const { Product } = require("../models/Product");
 const { Cash } = require("../models/Cash");
-const Fawn = require("fawn");
+const { Bank } = require("../models/Bank");
 const mongoose = require("mongoose");
+const Fawn = require("fawn");
 
 Fawn.init(mongoose);
 
@@ -21,12 +22,12 @@ router.get("/", auth, async (req, res) => {
         $and: [
           { user: req.user.id },
           { productName: product },
-          { payment: "credit" }
-        ]
+          { payment: "credit" },
+        ],
       });
     } else {
       purchase = await Purchase.find({ user: req.user.id }).sort({
-        date: -1
+        date: -1,
       });
     }
     res.json(purchase);
@@ -41,13 +42,9 @@ router.post(
   [
     auth,
     [
-      check("productName", "Name is required")
-        .not()
-        .isEmpty(),
-      check("payment", "Payment method is required")
-        .not()
-        .isEmpty()
-    ]
+      check("productName", "Name is required").not().isEmpty(),
+      check("payment", "Payment method is required").not().isEmpty(),
+    ],
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -66,7 +63,7 @@ router.post(
       otherExpenses,
       date,
       newPur,
-      productId
+      productId,
     } = req.body;
 
     let othExp = 0;
@@ -90,12 +87,7 @@ router.post(
           if (!creditor)
             return res.status(400).json({ msg: "Invalid creditor" });
         }
-        let p = await Product.findOne({
-          productName: productName.toLowerCase()
-        });
-        if (p) {
-          return res.status(400).json({ msg: "Product already exist" });
-        }
+
         let newPurchase;
         if (creditor) {
           newPurchase = new Purchase({
@@ -110,9 +102,9 @@ router.post(
             creditor: {
               _id: creditor._id,
               name: creditor.name,
-              contact: creditor.contact
+              contact: creditor.contact,
             },
-            user: req.user.id
+            user: req.user.id,
           });
         } else {
           newPurchase = new Purchase({
@@ -124,39 +116,67 @@ router.post(
             otherExpenses,
             totalCost: tAmount,
             date,
-            user: req.user.id
+            user: req.user.id,
           });
         }
 
         const cashCr = await Cash.find({
-          $and: [{ user: req.user.id }, { type: "cr" }]
+          $and: [{ user: req.user.id }, { type: "cr" }],
         });
         const cashDr = await Cash.find({
-          $and: [{ user: req.user.id }, { type: "dr" }]
+          $and: [{ user: req.user.id }, { type: "dr" }],
         });
 
-        let crTotal = 0;
-        let drTotal = 0;
+        let cashCrTotal = 0;
+        let cashDrTotal = 0;
 
-        cashCr.forEach(cr => (crTotal += cr.amount));
-        cashDr.forEach(dr => (drTotal += dr.amount));
+        cashCr.forEach((cr) => (cashCrTotal += cr.amount));
+        cashDr.forEach((dr) => (cashDrTotal += dr.amount));
 
-        const netCash = drTotal - crTotal;
+        const netCash = cashDrTotal - cashCrTotal;
 
         const newCash = new Cash({
           source: "purchase",
           type: "cr",
           amount: tAmount,
-          user: req.user.id
+          user: req.user.id,
+        });
+
+        const bankCr = await Bank.find({
+          $and: [{ user: req.user.id }, { type: "cr" }],
+        });
+        const bankDr = await Bank.find({
+          $and: [{ user: req.user.id }, { type: "dr" }],
+        });
+
+        let bankCrTotal = 0;
+        let bankDrTotal = 0;
+
+        bankCr.forEach((cr) => (bankCrTotal += cr.amount));
+        bankDr.forEach((dr) => (bankDrTotal += dr.amount));
+
+        const netBank = bankDrTotal - bankCrTotal;
+
+        const newBank = new Bank({
+          source: "purchase",
+          type: "cr",
+          amount: tAmount,
+          user: req.user.id,
         });
 
         if (newPur) {
+          let p = await Product.findOne({
+            productName: productName.toLowerCase(),
+          });
+          if (p) {
+            return res.status(400).json({ msg: "Product already exist" });
+          }
           const newProduct = new Product({
             productName,
             numberInStock: quantity,
             perPieceCost,
             perPieceSellingPrice,
-            user: req.user.id
+            user: req.user.id,
           });
           if (creditor) {
             if (!mongoose.Types.ObjectId.isValid(creditorId))
@@ -172,16 +192,30 @@ router.post(
               .save("products", newProduct)
               .run();
           } else {
-            if (netCash < tAmount)
-              return res
-                .status(400)
-                .json({ msg: "Enough Cash is not available" });
+            if (payment === "cash") {
+              if (netCash < tAmount)
+                return res
+                  .status(400)
+                  .json({ msg: "Enough Cash is not available" });
 
-            new Fawn.Task()
-              .save("purchases", newPurchase)
-              .save("products", newProduct)
-              .save("cashes", newCash)
-              .run();
+              new Fawn.Task()
+                .save("purchases", newPurchase)
+                .save("products", newProduct)
+                .save("cashes", newCash)
+                .run();
+            }
+            if (payment === "bank") {
+              if (netBank < tAmount)
+                return res
+                  .status(400)
+                  .json({ msg: "Enough amount is not available in bank" });
+
+              new Fawn.Task()
+                .save("purchases", newPurchase)
+                .save("products", newProduct)
+                .save("banks", newBank)
+                .run();
+            }
           }
 
           res.json({ newPurchase, newProduct });
@@ -203,19 +237,36 @@ router.post(
               )
               .run();
           } else {
-            if (netCash < tAmount)
-              return res
-                .status(400)
-                .json({ msg: "Enough Cash is not available" });
-            new Fawn.Task()
-              .save("purchases", newPurchase)
-              .update(
-                "products",
-                { _id: mongoose.Types.ObjectId(productId) },
-                { $inc: { numberInStock: quantity } }
-              )
-              .save("cashes", newCash)
-              .run();
+            if (payment === "cash") {
+              if (netCash < tAmount)
+                return res
+                  .status(400)
+                  .json({ msg: "Enough Cash is not available" });
+              new Fawn.Task()
+                .save("purchases", newPurchase)
+                .update(
+                  "products",
+                  { _id: mongoose.Types.ObjectId(productId) },
+                  { $inc: { numberInStock: quantity } }
+                )
+                .save("cashes", newCash)
+                .run();
+            }
+            if (payment === "bank") {
+              if (netBank < tAmount)
+                return res
+                  .status(400)
+                  .json({ msg: "Enough amount is not available in bank" });
+              new Fawn.Task()
+                .save("purchases", newPurchase)
+                .update(
+                  "products",
+                  { _id: mongoose.Types.ObjectId(productId) },
+                  { $inc: { numberInStock: quantity } }
+                )
+                .save("banks", newBank)
+                .run();
+            }
           }
 
           res.json(newPurchase);
@@ -238,7 +289,7 @@ router.put("/:id", auth, async (req, res) => {
     quantity,
     perPieceCost,
     perPieceSellingPrice,
-    date
+    date,
   } = req.body;
 
   // Build a card object
@@ -269,7 +320,7 @@ router.put("/:id", auth, async (req, res) => {
       purchaseFields.creditor = {
         _id: creditor._id,
         name: creditor.name,
-        contact: creditor.contact
+        contact: creditor.contact,
       };
     }
 

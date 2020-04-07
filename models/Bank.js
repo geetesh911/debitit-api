@@ -1,16 +1,16 @@
 const mongoose = require("mongoose");
 
-const ExpenseSchema = mongoose.Schema({
+const BankSchema = mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "users",
   },
-  name: {
+  source: {
     type: String,
     required: true,
   },
-  payment: {
-    type: Number,
+  type: {
+    type: String,
     required: true,
   },
   amount: {
@@ -24,6 +24,6 @@ const ExpenseSchema = mongoose.Schema({
   },
 });
 
-const Expense = mongoose.model("expense", ExpenseSchema);
-exports.ExpenseSchema = ExpenseSchema;
-exports.Expense = Expense;
+const Bank = mongoose.model("bank", BankSchema);
+exports.BankSchema = BankSchema;
+exports.Bank = Bank;

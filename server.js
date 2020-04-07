@@ -43,6 +43,7 @@ app.use("/api/salesreturn", require("./routes/salesReturn"));
 app.use("/api/expensecategory", require("./routes/expenseCategory"));
 app.use("/api/expense", require("./routes/expense"));
 app.use("/api/cash", require("./routes/cash"));
+app.use("/api/bank", require("./routes/bank"));
 app.use("/api/drawing", require("./routes/drawing"));
 app.use("/api/receivedpayment", require("./routes/receivedPayment"));
 app.use("/api/gavepayment", require("./routes/gavePayment"));

@@ -5,6 +5,7 @@ const { Sales } = require("../models/Sales");
 const { Customer } = require("../models/Customer");
 const { Product } = require("../models/Product");
 const { Cash } = require("../models/Cash");
+const { Bank } = require("../models/Bank");
 const Fawn = require("fawn");
 const mongoose = require("mongoose");
 
@@ -19,12 +20,12 @@ router.get("/", auth, async (req, res) => {
         $and: [
           { user: req.user.id },
           { soldProducts: { $elemMatch: { productName: product } } },
-          { payment: "credit" }
-        ]
+          { payment: "credit" },
+        ],
       });
     } else {
       sales = await Sales.find({ user: req.user.id }).sort({
-        date: -1
+        date: -1,
       });
     }
     res.json(sales);
@@ -39,13 +40,9 @@ router.post(
   [
     auth,
     [
-      check("soldProducts", "product is required")
-        .not()
-        .isEmpty(),
-      check("payment", "Payment method is required")
-        .not()
-        .isEmpty()
-    ]
+      check("soldProducts", "product is required").not().isEmpty(),
+      check("payment", "Payment method is required").not().isEmpty(),
+    ],
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -93,9 +90,9 @@ router.post(
           customer: {
             _id: customer._id,
             name: customer.name,
-            mobile: customer.mobile
+            mobile: customer.mobile,
           },
-          user: req.user.id
+          user: req.user.id,
         });
       } else {
         newSale = new Sales({
@@ -104,7 +101,7 @@ router.post(
           otherExpenses,
           totalAmount: tAmount,
           date,
-          user: req.user.id
+          user: req.user.id,
         });
       }
 
@@ -112,7 +109,14 @@ router.post(
         source: "sales",
         type: "dr",
         amount: tAmount,
-        user: req.user.id
+        user: req.user.id,
+      });
+
+      const newBank = new Bank({
+        source: "sales",
+        type: "dr",
+        amount: tAmount,
+        user: req.user.id,
       });
 
       let task = new Fawn.Task();
@@ -154,7 +158,8 @@ router.post(
           );
         }
         task = task.save("sales", newSale);
-        task = task.save("cashes", newCash);
+        if (payment === "cash") task = task.save("cashes", newCash);
+        if (payment === "bank") task = task.save("banks", newBank);
         task.run();
       }
 
@@ -174,7 +179,7 @@ router.put("/:id", auth, async (req, res) => {
     quantity,
     perPieceCost,
     perPieceSellingPrice,
-    date
+    date,
   } = req.body;
 
   // Build a card object
@@ -205,7 +210,7 @@ router.put("/:id", auth, async (req, res) => {
       purchaseFields.creditor = {
         _id: creditor._id,
         name: creditor.name,
-        contact: creditor.contact
+        contact: creditor.contact,
       };
     }
 

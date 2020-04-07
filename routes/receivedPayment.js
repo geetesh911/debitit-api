@@ -1,5 +1,6 @@
 const { Customer } = require("../models/Customer");
 const { Cash } = require("../models/Cash");
+const { Bank } = require("../models/Bank");
 const Fawn = require("fawn");
 const mongoose = require("mongoose");
 const express = require("express");
@@ -13,16 +14,12 @@ router.post(
   [
     auth,
     [
-      check("customerId", "Customer ID is required")
-        .not()
-        .isEmpty(),
-      check("amount", "Amount is required")
-        .not()
-        .isEmpty()
-    ]
+      check("customerId", "Customer ID is required").not().isEmpty(),
+      check("amount", "Amount is required").not().isEmpty(),
+    ],
   ],
   async (req, res) => {
-    const { amount, customerId } = req.body;
+    const { amount, source, customerId } = req.body;
 
     try {
       let customer = await Customer.findById(customerId);
@@ -34,21 +31,39 @@ router.post(
         return res.status(401).json({ msg: "Not Authorized" });
       }
 
-      const newTransaction = new Cash({
+      const newCash = new Cash({
         source: customer.name,
         type: "dr",
         amount,
-        user: req.user.id
+        user: req.user.id,
+      });
+      const newBank = new Bank({
+        source: customer.name,
+        type: "dr",
+        amount,
+        user: req.user.id,
       });
 
-      new Fawn.Task()
-        .save("cashes", newTransaction)
-        .update(
-          "customers",
-          { _id: mongoose.Types.ObjectId(customerId) },
-          { $inc: { due: -amount } }
-        )
-        .run();
+      if (source === "cash") {
+        new Fawn.Task()
+          .save("cashes", newCash)
+          .update(
+            "customers",
+            { _id: mongoose.Types.ObjectId(customerId) },
+            { $inc: { due: -amount } }
+          )
+          .run();
+      }
+      if (source === "bank") {
+        new Fawn.Task()
+          .save("banks", newBank)
+          .update(
+            "customers",
+            { _id: mongoose.Types.ObjectId(customerId) },
+            { $inc: { due: -amount } }
+          )
+          .run();
+      }
 
       res.json(customer);
     } catch (err) {

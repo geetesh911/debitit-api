@@ -3,8 +3,8 @@ const { check, validationResult } = require("express-validator");
 const auth = require("../middleware/auth");
 const mongoose = require("mongoose");
 const { Liability } = require("../models/Liability");
-const { Creditor } = require("../models/Creditor");
 const { Cash } = require("../models/Cash");
+const { Bank } = require("../models/Bank");
 const Fawn = require("fawn");
 
 const router = express.Router();
@@ -38,7 +38,14 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array()[0].msg });
     }
-    const { name, amount, time, interestRate, otherExpenses } = req.body;
+    const {
+      name,
+      amount,
+      time,
+      source,
+      interestRate,
+      otherExpenses,
+    } = req.body;
 
     const timeInYears = time / 12;
 
@@ -49,6 +56,13 @@ router.post(
       if (otherExpenses) othExp = otherExpenses;
 
       const newCash = new Cash({
+        source: name,
+        type: "dr",
+        amount: amount + othExp,
+        user: req.user.id,
+      });
+
+      const newBank = new Bank({
         source: name,
         type: "dr",
         amount: amount + othExp,
@@ -66,8 +80,15 @@ router.post(
 
       let task = new Fawn.Task();
 
-      task = task.save("liabilities", newLiability);
-      task = task.save("cashes", newCash);
+      if (source === "cash") {
+        task = task.save("liabilities", newLiability);
+        task = task.save("cashes", newCash);
+      }
+      if (source === "bank") {
+        task = task.save("liabilities", newLiability);
+        task = task.save("banks", newBank);
+      }
+
       task.run();
 
       res.json(newLiability);
@@ -86,7 +107,7 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array()[0].msg });
     }
-    const { amount, otherExpenses } = req.body;
+    const { amount, payment, otherExpenses } = req.body;
 
     try {
       const liability = await Liability.findById(req.params.id);
@@ -104,43 +125,83 @@ router.post(
       const cashCr = await Cash.find({
         $and: [{ user: req.user.id }, { type: "cr" }],
       });
-
       const cashDr = await Cash.find({
         $and: [{ user: req.user.id }, { type: "dr" }],
       });
 
-      let crTotal = 0;
-      let drTotal = 0;
+      let cashCrTotal = 0;
+      let cashDrTotal = 0;
 
-      cashCr.forEach((cr) => (crTotal += cr.amount));
-      cashDr.forEach((dr) => (drTotal += dr.amount));
+      cashCr.forEach((cr) => (cashCrTotal += cr.amount));
+      cashDr.forEach((dr) => (cashDrTotal += dr.amount));
 
-      const netCash = drTotal - crTotal;
+      const netCash = cashDrTotal - cashCrTotal;
 
       const newCash = new Cash({
         source: liability.name,
         type: "cr",
-        amount: amount + othExp,
+        amount: amount,
         user: req.user.id,
       });
 
-      if (netCash < amount)
-        return res.status(400).json({ msg: "Enough Cash is not available" });
+      const bankCr = await Bank.find({
+        $and: [{ user: req.user.id }, { type: "cr" }],
+      });
+      const bankDr = await Bank.find({
+        $and: [{ user: req.user.id }, { type: "dr" }],
+      });
 
-      let task = new Fawn.Task();
+      let bankCrTotal = 0;
+      let bankDrTotal = 0;
 
-      task = task.update(
-        "liabilities",
-        { _id: mongoose.Types.ObjectId(req.params.id) },
-        { $inc: { amount: -amount } }
-      );
-      task = task.save("cashes", newCash);
-      task.run();
+      bankCr.forEach((cr) => (bankCrTotal += cr.amount));
+      bankDr.forEach((dr) => (bankDrTotal += dr.amount));
+
+      const netBank = bankDrTotal - bankCrTotal;
+
+      const newBank = new Bank({
+        source: liability.name,
+        type: "cr",
+        amount: amount,
+        user: req.user.id,
+      });
+
+      if (payment === "cash") {
+        if (netCash < amount)
+          return res.status(400).json({ msg: "Enough Cash is not available" });
+
+        let task = new Fawn.Task();
+
+        task = task.update(
+          "liabilities",
+          { _id: mongoose.Types.ObjectId(req.params.id) },
+          { $inc: { amount: -amount } }
+        );
+        task = task.save("cashes", newCash);
+        task.run();
+      }
+      if (payment === "bank") {
+        if (netBank < amount)
+          return res
+            .status(400)
+            .json({ msg: "Enough amount is not available in bank" });
+
+        let task = new Fawn.Task();
+
+        task = task.update(
+          "liabilities",
+          { _id: mongoose.Types.ObjectId(req.params.id) },
+          { $inc: { amount: -amount } }
+        );
+        task = task.save("banks", newBank);
+        task.run();
+      }
 
       res.json({
         amount: liability.amount - amount,
         name: liability.name,
         otherExpenses: othExp,
+        payment,
         user: liability.id,
         id: req.params.id,
         date: Date.now,
