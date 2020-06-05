@@ -13,17 +13,13 @@ const router = express.Router();
 router.post(
   "/",
   [
-    check("name", "Please add a name")
-      .not()
-      .isEmpty(),
-    check("gender", "Please specify your gender")
-      .not()
-      .isEmpty(),
+    check("name", "Please add a name").not().isEmpty(),
+    check("gender", "Please specify your gender").not().isEmpty(),
     check("email", "Please include a valid email").isEmail(),
     check(
       "password",
       "Please enter a password with 6 or more characters"
-    ).isLength({ min: 6 })
+    ).isLength({ min: 6 }),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -44,7 +40,7 @@ router.post(
         "https://i.ibb.co/YNML0vX/avataaars-8.png",
         "https://i.ibb.co/3y67fTm/avataaars-7.png",
         "https://i.ibb.co/59JsjzL/avataaars-6.png",
-        "https://i.ibb.co/1TgMw3W/avataaars-4.png"
+        "https://i.ibb.co/1TgMw3W/avataaars-4.png",
       ];
 
       let maleIcons = [
@@ -52,7 +48,7 @@ router.post(
         "https://i.ibb.co/44Fj4FH/avataaars-2.png",
         "https://i.ibb.co/3M6MHhK/avataaars-1.png",
         "https://i.ibb.co/NxQrY72/avataaars-3.png",
-        "https://i.ibb.co/r4mkYC1/avataaars.png"
+        "https://i.ibb.co/r4mkYC1/avataaars.png",
       ];
 
       let icon;
@@ -67,7 +63,7 @@ router.post(
         password,
         address,
         mobile,
-        icon
+        icon,
       });
 
       const salt = await bcrypt.genSalt(10);
@@ -78,21 +74,14 @@ router.post(
 
       const payload = {
         user: {
-          id: user.id
-        }
+          id: user.id,
+        },
       };
 
-      jwt.sign(
-        payload,
-        config.get("jwtSecret"),
-        {
-          expiresIn: 3600000000
-        },
-        (err, token) => {
-          if (err) throw err;
-          res.json({ token });
-        }
-      );
+      jwt.sign(payload, config.get("jwtSecret"), (err, token) => {
+        if (err) throw err;
+        res.json({ token });
+      });
     } catch (err) {
       console.error(err.message);
       res.status(500).send("Server Error");
